@@ -194,14 +194,13 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- Bu kısmı EKLEYİN -->
 <script type="module">
-  // Firebase başlatma kodu buraya
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+  // Güncellenmiş Firebase Konfigürasyonu
   const firebaseConfig = {
     apiKey: "AIzaSyBZxoaXp0IU-V-ncuch1eahrrcKcxbpfDY",
     authDomain: "talhayazilim-a9b26.firebaseapp.com",
@@ -216,46 +215,131 @@
   const database = getDatabase(app);
   const productsRef = ref(database, 'products');
 
+  // Global Firebase Fonksiyonları
   window.firebaseOps = {
-    addProduct: (product) => push(productsRef, product),
+    addProduct: async (product) => {
+      try {
+        const newProductRef = await push(productsRef, product);
+        return newProductRef.key;
+      } catch (error) {
+        throw error;
+      }
+    },
     getProducts: (callback) => onValue(productsRef, (snapshot) => {
-      const data = snapshot.val();
-      callback(data ? Object.entries(data) : []);
+      callback(snapshot.val() || {});
     }),
     deleteProduct: (key) => remove(ref(database, `products/${key}`)),
     updateProduct: (key, updates) => update(ref(database, `products/${key}`), updates)
   };
 </script>
 
-<!-- Mevcut script'i BU ŞEKİLDE DEĞİŞTİRİN -->
 <script>
-  // Firebase uyumlu yeni kod buraya
-  let products = [];
   let editKey = null;
   let isAdmin = false;
 
+  // Geliştirilmiş Giriş Sistemi
   function login() {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
     
     if(username === 'admin' && password === 'admin123') {
       isAdmin = true;
-      document.getElementById('adminPanel').style.display = 'block';
-      document.getElementById('actionHeader').style.display = 'table-cell';
+      toggleAdminUI(true);
       loadProducts();
-      document.querySelector('.login-container').innerHTML = `
-        <div class="d-flex align-items-center gap-2">
-          <span class="text-white"><i class="fas fa-user-cog"></i> Admin</span>
-          <button onclick="logout()" class="btn btn-sm btn-custom">Çıkış</button>
-        </div>
-      `;
     } else {
-      alert('Hatalı giriş bilgileri!');
+      showAlert('Hatalı giriş!', 'danger');
     }
   }
 
-  // ... Diğer fonksiyonlar orijinal cevaptaki gibi ...
-  // (Tüm fonksiyonları firebase uyumlu hale getirilmiş şekilde ekleyin)
-</script>
-</body>
-</html>
+  function toggleAdminUI(isLoggedIn) {
+    document.getElementById('adminPanel').style.display = isLoggedIn ? 'block' : 'none';
+    document.querySelectorAll('.action-cell').forEach(el => {
+      el.style.display = isLoggedIn ? 'table-cell' : 'none';
+    });
+  }
+
+  // Güncellenmiş Ürün Ekleme Fonksiyonu
+  async function addProduct() {
+    const newProduct = {
+      brand: document.getElementById('brand').value.trim(),
+      model: document.getElementById('model').value.trim(),
+      issue: document.getElementById('issue').value.trim(),
+      price: formatPrice(document.getElementById('price').value.trim()),
+      timestamp: Date.now()
+    };
+
+    if (!validateProduct(newProduct)) return;
+
+    try {
+      await window.firebaseOps.addProduct(newProduct);
+      showAlert('Ürün başarıyla eklendi!', 'success');
+      clearInputs();
+    } catch (error) {
+      handleFirebaseError(error);
+    }
+  }
+
+  // Geliştirilmiş Validasyon
+  function validateProduct(product) {
+    const errors = [];
+    if (!product.brand) errors.push('Marka');
+    if (!product.model) errors.push('Model');
+    if (!product.price) errors.push('Fiyat');
+    
+    if (errors.length > 0) {
+      showAlert(`Zorunlu alanlar eksik: ${errors.join(', ')}`, 'warning');
+      return false;
+    }
+    
+    if (!/^₺?\d+(?:[.,]\d{1,2})?$/.test(product.price)) {
+      showAlert('Geçersiz fiyat formatı! (Örnek: ₺1500 veya 1500,99)', 'danger');
+      return false;
+    }
+    
+    return true;
+  }
+
+  // Fiyat Formatlama
+  function formatPrice(price) {
+    return price.startsWith('₺') ? price : `₺${parseFloat(price).toFixed(2)}`;
+  }
+
+  // Hata Yönetimi
+  function handleFirebaseError(error) {
+    const errorMessages = {
+      'PERMISSION_DENIED': 'Yetkiniz yok!',
+      'INVALID_DATA': 'Geçersiz veri formatı!',
+      'NETWORK_ERROR': 'İnternet bağlantısı yok!'
+    };
+    
+    const message = errorMessages[error.code] || `Hata: ${error.message}`;
+    showAlert(message, 'danger');
+  }
+
+  // Ürün Yükleme ve Tablo Güncelleme
+  function loadProducts() {
+    window.firebaseOps.getProducts((products) => {
+      const tbody = document.getElementById('productList');
+      tbody.innerHTML = '';
+      
+      for (const [key, product] of Object.entries(products)) {
+        const row = `
+          <tr>
+            <td>${product.brand}</td>
+            <td>${product.model}</td>
+            <td>${product.issue || '-'}</td>
+            <td>${product.price}</td>
+            <td class="action-cell" style="display: ${isAdmin ? 'table-cell' : 'none'}">
+              <button onclick="editProduct('${key}')" class="btn btn-sm btn-warning">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button onclick="deleteProduct('${key}')" class="btn btn-sm btn-danger">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+        tbody.innerHTML += row;
+      }
+    });
+  }
