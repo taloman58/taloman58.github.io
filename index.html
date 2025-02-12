@@ -199,240 +199,297 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyBZxoaXp0IU-V-ncuch1eahrrcKcxbpfDY",
-    authDomain: "talhayazilim-a9b26.firebaseapp.com",
-    databaseURL: "https://talhayazilim-a9b26-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "talhayazilim-a9b26",
-    storageBucket: "talhayazilim-a9b26.appspot.com",
-    messagingSenderId: "1074327490178",
-    appId: "1:1074327490178:web:8761e1f28a60046b592e9b"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const database = getDatabase(app);
-  const productsRef = ref(database, 'products');
-
-  window.firebaseOps = {
-    addProduct: (product) => push(productsRef, product),
-    getProducts: (callback) => onValue(productsRef, (snapshot) => callback(snapshot.val() || {})),
-    deleteProduct: (key) => remove(ref(database, `products/${key}`)),
-    updateProduct: (key, updates) => update(ref(database, `products/${key}`), updates)
-  };
-</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  let editKey = null;
-  let isAdmin = false;
-  let allProducts = {};
+const SUPABASE_URL = 'https://sysyhsggwddqrntjmegf.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5c3loc2dnd2RkcXJudGptZWdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkzODE3NDUsImV4cCI6MjA1NDk1Nzc0NX0.yog_0OT1pzIjRQIG2w3h3xOLRGUJ9uPsxDW-l3gIhy4';
 
-  function login() {
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    
-    if(username === 'admin' && password === 'admin123') {
-      isAdmin = true;
-      document.getElementById('adminPanel').style.display = 'block';
-      document.getElementById('actionHeader').style.display = 'table-cell';
-      document.querySelector('.login-container').innerHTML = `
-        <div class="d-flex align-items-center gap-2">
-          <span class="text-white"><i class="fas fa-user-cog"></i> Admin</span>
-          <button onclick="logout()" class="btn btn-sm btn-custom">Çıkış</button>
-        </div>
-      `;
-      loadProducts();
-    } else {
-      showAlert('Hatalı giriş bilgileri!', 'danger');
-    }
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let editKey = null;
+let isAdmin = false;
+let allProducts = [];
+let realtimeChannel;
+
+// Supabase Operasyonları
+const supabaseOps = {
+  addProduct: async (product) => {
+    const { data, error } = await supabase
+      .from('products')
+      .insert(product)
+      .select();
+    return { data, error };
+  },
+
+  getProducts: async () => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false });
+    return { data, error };
+  },
+
+  deleteProduct: async (id) => {
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id);
+    return { error };
+  },
+
+  updateProduct: async (id, updates) => {
+    const { data, error } = await supabase
+      .from('products')
+      .update(updates)
+      .eq('id', id)
+      .select();
+    return { data, error };
+  },
+
+  realtimeUpdates: (callback) => {
+    return supabase
+      .channel('products-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'products'
+      }, (payload) => callback(payload))
+      .subscribe();
   }
+};
 
-  function logout() {
-    isAdmin = false;
-    document.getElementById('adminPanel').style.display = 'none';
-    document.getElementById('actionHeader').style.display = 'none';
-    document.querySelector('.login-container').innerHTML = `
-      <div class="dropdown">
-        <button class="btn btn-custom dropdown-toggle" type="button" data-bs-toggle="dropdown">
-          <i class="fas fa-user-shield"></i> Teknisyen Girişi
-        </button>
-        <div class="dropdown-menu dropdown-menu-end p-3" style="min-width: 250px">
-          <!-- Login formu aynı -->
-        </div>
+async function login() {
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  
+  if(username === 'admin' && password === 'admin123') {
+    isAdmin = true;
+    document.getElementById('adminPanel').style.display = 'block';
+    document.getElementById('actionHeader').style.display = 'table-cell';
+       document.querySelector('.login-container').innerHTML = `
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-white"><i class="fas fa-user-cog"></i> Admin</span>
+        <button onclick="logout()" class="btn btn-sm btn-custom">Çıkış</button>
       </div>
     `;
+    await loadProducts();
+    initRealtime();
+  } else {
+    showAlert('Hatalı giriş bilgileri!', 'danger');
   }
+}
 
-  async function addProduct(event) {
-    event.preventDefault();
+function logout() {
+  isAdmin = false;
+  document.getElementById('adminPanel').style.display = 'none';
+  document.getElementById('actionHeader').style.display = 'none';
+  document.querySelector('.login-container').innerHTML = `
+    <div class="dropdown">
+      <button class="btn btn-custom dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <i class="fas fa-user-shield"></i> Teknisyen Girişi
+      </button>
+      <div class="dropdown-menu dropdown-menu-end p-3" style="min-width: 250px">
+        <div class="mb-3">
+          <label class="form-label"><i class="fas fa-user"></i> Kullanıcı Adı</label>
+          <input type="text" id="username" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label"><i class="fas fa-lock"></i> Şifre</label>
+          <input type="password" id="password" class="form-control">
+        </div>
+        <button onclick="login()" class="btn btn-custom w-100">Giriş Yap</button>
+      </div>
+    </div>
+  `;
+  if(realtimeChannel) realtimeChannel.unsubscribe();
+}
+
+async function addProduct(event) {
+  event.preventDefault();
+  
+  const newProduct = {
+    brand: document.getElementById('brand').value.trim(),
+    model: document.getElementById('model').value.trim(),
+    issue: document.getElementById('issue').value.trim(),
+    price: formatPrice(document.getElementById('price').value.trim())
+  };
+
+  if (!validateProduct(newProduct)) return;
+
+  try {
+    const { error } = await supabaseOps.addProduct(newProduct);
+    if(error) throw error;
+    showAlert('Ürün başarıyla eklendi!', 'success');
+    clearInputs();
+  } catch (error) {
+    handleSupabaseError(error);
+  }
+}
+
+function validateProduct(product) {
+  const errors = [];
+  if (!product.brand) errors.push('Marka');
+  if (!product.model) errors.push('Model');
+  if (!product.price) errors.push('Fiyat');
+  
+  if (errors.length > 0) {
+    showAlert(`Zorunlu alanlar eksik: ${errors.join(', ')}`, 'warning');
+    return false;
+  }
+  
+  if (!/^₺?\d+(?:[.,]\d{1,2})?$/.test(product.price)) {
+    showAlert('Geçersiz fiyat formatı! (Örnek: ₺1500 veya 1500,99)', 'danger');
+    return false;
+  }
+  
+  return true;
+}
+
+function formatPrice(price) {
+  try {
+    const cleanPrice = price.replace(/[^\d,.]/g, '');
+    const numericValue = parseFloat(cleanPrice.replace(',', '.'));
     
-    const newProduct = {
-      brand: document.getElementById('brand').value.trim(),
-      model: document.getElementById('model').value.trim(),
-      issue: document.getElementById('issue').value.trim(),
-      price: formatPrice(document.getElementById('price').value.trim()),
-      timestamp: Date.now()
-    };
-
-    if (!validateProduct(newProduct)) return;
-
-    try {
-      await window.firebaseOps.addProduct(newProduct);
-      showAlert('Ürün başarıyla eklendi!', 'success');
-      clearInputs();
-    } catch (error) {
-      handleFirebaseError(error);
-    }
-  }
-
-  function validateProduct(product) {
-    const errors = [];
-    if (!product.brand) errors.push('Marka');
-    if (!product.model) errors.push('Model');
-    if (!product.price) errors.push('Fiyat');
+    if(isNaN(numericValue)) throw new Error('Geçersiz fiyat');
     
-    if (errors.length > 0) {
-      showAlert(`Zorunlu alanlar eksik: ${errors.join(', ')}`, 'warning');
-      return false;
-    }
-    
-    if (!/^₺?\d+(?:[.,]\d{1,2})?$/.test(product.price)) {
-      showAlert('Geçersiz fiyat formatı! (Örnek: ₺1500 veya 1500,99)', 'danger');
-      return false;
-    }
-    
-    return true;
+    return `₺${numericValue.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
+  } catch {
+    showAlert('Geçersiz fiyat formatı! Örnek: 1500 veya 1500,99', 'danger');
+    throw new Error('Invalid price');
   }
+}
 
-  function formatPrice(price) {
-    try {
-      const cleanPrice = price.replace(/[^\d,.]/g, '');
-      const numericValue = parseFloat(cleanPrice.replace(',', '.'));
-      
-      if(isNaN(numericValue)) throw new Error('Geçersiz fiyat');
-      
-      return `₺${numericValue.toFixed(2)}`;
-    } catch {
-      showAlert('Geçersiz fiyat formatı! Örnek: 1500 veya 1500,99', 'danger');
-      throw new Error('Invalid price');
-    }
+async function loadProducts() {
+  try {
+    const { data, error } = await supabaseOps.getProducts();
+    if(error) throw error;
+    allProducts = data;
+    renderProducts(allProducts);
+  } catch (error) {
+    handleSupabaseError(error);
   }
+}
 
-  function loadProducts() {
-    window.firebaseOps.getProducts((products) => {
-      allProducts = products;
-      renderProducts(products);
-    });
-  }
-
-  function renderProducts(products) {
-    const tbody = document.getElementById('productList');
-    tbody.innerHTML = '';
-    
-    Object.entries(products).forEach(([key, product]) => {
-      tbody.innerHTML += `
-        <tr>
-          <td>${product.brand}</td>
-          <td>${product.model}</td>
-          <td>${product.issue || '-'}</td>
-          <td>${product.price}</td>
-          <td class="action-cell" style="display: ${isAdmin ? 'table-cell' : 'none'}">
-            <button onclick="editProduct('${key}')" class="btn btn-sm btn-warning me-2">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button onclick="deleteProduct('${key}')" class="btn btn-sm btn-danger">
-              <i class="fas fa-trash"></i>
-            </button>
-          </td>
-        </tr>
-      `;
-    });
-  }
-
-  function editProduct(key) {
-    editKey = key;
-    const product = allProducts[key];
-    document.getElementById('editBrand').value = product.brand;
-    document.getElementById('editModel').value = product.model;
-    document.getElementById('editIssue').value = product.issue || '';
-    document.getElementById('editPrice').value = product.price;
-    new bootstrap.Modal(document.getElementById('editModal')).show();
-  }
-
-  async function saveEdit() {
-    const updatedProduct = {
-      brand: document.getElementById('editBrand').value.trim(),
-      model: document.getElementById('editModel').value.trim(),
-      issue: document.getElementById('editIssue').value.trim(),
-      price: formatPrice(document.getElementById('editPrice').value.trim()),
-      timestamp: Date.now()
-    };
-
-
-    if (!validateProduct(updatedProduct)) return;
-
-    try {
-      await window.firebaseOps.updateProduct(editKey, updatedProduct);
-      showAlert('Ürün başarıyla güncellendi!', 'success');
-      const editModal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
-      editModal.hide();
-    } catch (error) {
-      handleFirebaseError(error);
-    }
-  }
-
-  // Silme İşlemi
-  async function deleteProduct(key) {
-    if (confirm('Bu ürünü silmek istediğinize emin misiniz?')) {
-      try {
-        await window.firebaseOps.deleteProduct(key);
-        showAlert('Ürün başarıyla silindi!', 'success');
-      } catch (error) {
-        handleFirebaseError(error);
-      }
-    }
-  }
-
-  // Arama Filtreleme
-  function filterProducts() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const filtered = Object.fromEntries(
-      Object.entries(allProducts).filter(([_, product]) =>
-        product.model.toLowerCase().includes(searchTerm) ||
-        (product.issue || '').toLowerCase().includes(searchTerm)
-      )
-    );
-    renderProducts(filtered);
-  }
-
-  // Yardımcı Fonksiyonlar
-  function showAlert(message, type) {
-    const alert = document.createElement('div');
-    alert.className = `alert alert-${type} alert-dismissible fade show`;
-    alert.innerHTML = `
-      ${message}
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+function renderProducts(products) {
+  const tbody = document.getElementById('productList');
+  tbody.innerHTML = '';
+  
+  products.forEach(product => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${product.brand}</td>
+      <td>${product.model}</td>
+      <td>${product.issue || '-'}</td>
+      <td>${product.price}</td>
+      <td class="action-cell" style="display: ${isAdmin ? 'table-cell' : 'none'}">
+        <button onclick="editProduct('${product.id}')" class="btn btn-sm btn-warning me-2">
+          <i class="fas fa-edit"></i>
+        </button>
+        <button onclick="deleteProduct('${product.id}')" class="btn btn-sm btn-danger">
+          <i class="fas fa-trash"></i>
+        </button>
+      </td>
     `;
-    document.getElementById('alertContainer').appendChild(alert);
-    setTimeout(() => alert.remove(), 3000);
-  }
-
-  function clearInputs() {
-    ['brand', 'model', 'issue', 'price'].forEach(id => {
-      document.getElementById(id).value = '';
-    });
-  }
-
-  function handleFirebaseError(error) {
-    showAlert(`Hata: ${error.message}`, 'danger');
-  }
-
-  // İlk Yükleme
-  document.addEventListener('DOMContentLoaded', () => {
-    loadProducts();
+    tbody.appendChild(row);
   });
+}
+
+function editProduct(id) {
+  editKey = id;
+  const product = allProducts.find(p => p.id === id);
+  document.getElementById('editBrand').value = product.brand;
+  document.getElementById('editModel').value = product.model;
+  document.getElementById('editIssue').value = product.issue || '';
+  document.getElementById('editPrice').value = product.price;
+  new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+
+async function saveEdit() {
+  const updatedProduct = {
+    brand: document.getElementById('editBrand').value.trim(),
+    model: document.getElementById('editModel').value.trim(),
+    issue: document.getElementById('editIssue').value.trim(),
+    price: formatPrice(document.getElementById('editPrice').value.trim())
+  };
+
+  if (!validateProduct(updatedProduct)) return;
+
+  try {
+    const { error } = await supabaseOps.updateProduct(editKey, updatedProduct);
+    if(error) throw error;
+    showAlert('Ürün başarıyla güncellendi!', 'success');
+    const editModal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
+    editModal.hide();
+  } catch (error) {
+    handleSupabaseError(error);
+  }
+}
+
+async function deleteProduct(id) {
+  if (confirm('Bu ürünü silmek istediğinize emin misiniz?')) {
+    try {
+      const { error } = await supabaseOps.deleteProduct(id);
+      if(error) throw error;
+      showAlert('Ürün başarıyla silindi!', 'success');
+    } catch (error) {
+      handleSupabaseError(error);
+    }
+  }
+}
+
+function filterProducts() {
+  const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = allProducts.filter(product =>
+    product.model.toLowerCase().includes(searchTerm) ||
+    (product.issue || '').toLowerCase().includes(searchTerm)
+  );
+  renderProducts(filtered);
+}
+
+function initRealtime() {
+  realtimeChannel = supabaseOps.realtimeUpdates((payload) => {
+    switch(payload.eventType) {
+      case 'INSERT':
+        allProducts.unshift(payload.new);
+        break;
+      case 'DELETE':
+        allProducts = allProducts.filter(p => p.id !== payload.old.id);
+        break;
+      case 'UPDATE':
+        const index = allProducts.findIndex(p => p.id === payload.new.id);
+        if(index !== -1) allProducts[index] = payload.new;
+        break;
+    }
+    renderProducts(allProducts);
+  });
+}
+
+function showAlert(message, type) {
+  const alert = document.createElement('div');
+  alert.className = `alert alert-${type} alert-dismissible fade show`;
+  alert.innerHTML = `
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  `;
+  document.getElementById('alertContainer').appendChild(alert);
+  setTimeout(() => alert.remove(), 3000);
+}
+
+function clearInputs() {
+  ['brand', 'model', 'issue', 'price'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+}
+
+function handleSupabaseError(error) {
+  console.error('Supabase Hatası:', error);
+  showAlert(`Hata: ${error.message}`, 'danger');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadProducts();
+});
 </script>
+</body>
+</html>
