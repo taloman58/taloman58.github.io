@@ -195,145 +195,67 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Bu kısmı EKLEYİN -->
+<script type="module">
+  // Firebase başlatma kodu buraya
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBZxoaXp0IU-V-ncuch1eahrrcKcxbpfDY",
+    authDomain: "talhayazilim-a9b26.firebaseapp.com",
+    databaseURL: "https://talhayazilim-a9b26-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "talhayazilim-a9b26",
+    storageBucket: "talhayazilim-a9b26.appspot.com",
+    messagingSenderId: "1074327490178",
+    appId: "1:1074327490178:web:8761e1f28a60046b592e9b"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const database = getDatabase(app);
+  const productsRef = ref(database, 'products');
+
+  window.firebaseOps = {
+    addProduct: (product) => push(productsRef, product),
+    getProducts: (callback) => onValue(productsRef, (snapshot) => {
+      const data = snapshot.val();
+      callback(data ? Object.entries(data) : []);
+    }),
+    deleteProduct: (key) => remove(ref(database, `products/${key}`)),
+    updateProduct: (key, updates) => update(ref(database, `products/${key}`), updates)
+  };
+</script>
+
+<!-- Mevcut script'i BU ŞEKİLDE DEĞİŞTİRİN -->
 <script>
-    let products = JSON.parse(localStorage.getItem('products')) || [];
-    let editIndex = null;
-    let isAdmin = false;
+  // Firebase uyumlu yeni kod buraya
+  let products = [];
+  let editKey = null;
+  let isAdmin = false;
 
-    function login() {
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        
-        if(username === 'admin' && password === 'admin123') {
-            isAdmin = true;
-            document.getElementById('adminPanel').style.display = 'block';
-            document.getElementById('actionHeader').style.display = 'table-cell';
-            loadProducts();
-            document.querySelector('.login-container').innerHTML = `
-                <div class="d-flex align-items-center gap-2">
-                    <span class="text-white"><i class="fas fa-user-cog"></i> Admin</span>
-                    <button onclick="logout()" class="btn btn-sm btn-custom">Çıkış</button>
-                </div>
-            `;
-        } else {
-            alert('Hatalı giriş bilgileri!');
-        }
+  function login() {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    
+    if(username === 'admin' && password === 'admin123') {
+      isAdmin = true;
+      document.getElementById('adminPanel').style.display = 'block';
+      document.getElementById('actionHeader').style.display = 'table-cell';
+      loadProducts();
+      document.querySelector('.login-container').innerHTML = `
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-white"><i class="fas fa-user-cog"></i> Admin</span>
+          <button onclick="logout()" class="btn btn-sm btn-custom">Çıkış</button>
+        </div>
+      `;
+    } else {
+      alert('Hatalı giriş bilgileri!');
     }
+  }
 
-    function logout() {
-        isAdmin = false;
-        location.reload();
-    }
-
-    function filterProducts() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const filtered = products.filter(p => 
-            Object.values(p).some(v => v.toLowerCase().includes(searchTerm))
-        );
-        renderProducts(filtered);
-    }
-
-    function addProduct() {
-        const newProduct = {
-            brand: document.getElementById('brand').value.trim(),
-            model: document.getElementById('model').value.trim(),
-            issue: document.getElementById('issue').value.trim(),
-            price: document.getElementById('price').value.trim()
-        };
-
-        if(!newProduct.brand || !newProduct.model || !newProduct.price) {
-            alert('Lütfen zorunlu alanları doldurun! (Marka, Model ve Fiyat)');
-            return;
-        }
-
-        products.push(newProduct);
-        localStorage.setItem('products', JSON.stringify(products));
-        
-        clearInputs();
-        document.getElementById('searchInput').value = '';
-        filterProducts();
-        highlightRow(products.length - 1);
-    }
-
-    function renderProducts(data) {
-        const tbody = document.getElementById('productList');
-        tbody.innerHTML = data.map((product, index) => `
-            <tr>
-                <td>${product.brand}</td>
-                <td>${product.model}</td>
-                <td>${product.issue || '-'}</td>
-                <td><span class="badge bg-success">${product.price}</span></td>
-                <td style="${isAdmin ? '' : 'display:none'}">
-                    <button onclick="editProduct(${index})" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></button>
-                    <button onclick="deleteProduct(${index})" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
-                </td>
-            </tr>
-        `).join('');
-    }
-
-    function editProduct(index) {
-        editIndex = index;
-        const product = products[index];
-        document.getElementById('editBrand').value = product.brand;
-        document.getElementById('editModel').value = product.model;
-        document.getElementById('editIssue').value = product.issue;
-        document.getElementById('editPrice').value = product.price;
-        new bootstrap.Modal('#editModal').show();
-    }
-
-    function saveEdit() {
-        const editedProduct = {
-            brand: document.getElementById('editBrand').value.trim(),
-            model: document.getElementById('editModel').value.trim(),
-            issue: document.getElementById('editIssue').value.trim(),
-            price: document.getElementById('editPrice').value.trim()
-        };
-
-        if(!editedProduct.brand || !editedProduct.model || !editedProduct.price) {
-            alert('Lütfen zorunlu alanları doldurun!');
-            return;
-        }
-
-        products[editIndex] = editedProduct;
-        localStorage.setItem('products', JSON.stringify(products));
-        filterProducts();
-        bootstrap.Modal.getInstance('#editModal').hide();
-    }
-
-    function deleteProduct(index) {
-        if(confirm('Bu kaydı silmek istediğinize emin misiniz?')) {
-            products.splice(index, 1);
-            localStorage.setItem('products', JSON.stringify(products));
-            filterProducts();
-        }
-    }
-
-    function clearInputs() {
-        ['brand', 'model', 'issue', 'price'].forEach(id => {
-            document.getElementById(id).value = '';
-        });
-    }
-
-    function highlightRow(index) {
-        const rows = document.querySelectorAll('#productList tr');
-        if(rows[index]) {
-            rows[index].classList.add('highlight');
-            setTimeout(() => rows[index].classList.remove('highlight'), 2000);
-        }
-    }
-
-    window.onload = () => {
-        if(products.length === 0) {
-            products = [
-                {brand: 'Xiaomi', model: '11T', issue: 'Yazılım Gerekirse +250TL', price: '150 TL'},
-                {brand: 'Redmi', model: 'Note 12 Pro 5G', issue: 'Kilit Açık Olmalı', price: '200 TL'},
-                {brand: 'Samsung', model: 'A54', issue: 'FRP Server Gerekli', price: '250 TL'}
-            ];
-            localStorage.setItem('products', JSON.stringify(products));
-        }
-        filterProducts();
-        document.getElementById('searchInput').addEventListener('input', filterProducts);
-    }
+  // ... Diğer fonksiyonlar orijinal cevaptaki gibi ...
+  // (Tüm fonksiyonları firebase uyumlu hale getirilmiş şekilde ekleyin)
 </script>
 </body>
 </html>
