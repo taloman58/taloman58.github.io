@@ -2,309 +2,338 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Ultra Pro Bayi Yönetim Sistemi</title>
+    <title>Cep Telefonu Teknik Servis Fiyat Listesi</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary: #2A2F4F;
-            --secondary: #917FB3;
-            --accent: #E5BEEC;
+            --main-bg: linear-gradient(135deg, #2c3e50, #3498db);
+            --accent-color: #e67e22;
+            --card-bg: rgba(255, 255, 255, 0.95);
         }
 
         body {
-            background: #f8f9fa;
+            background: var(--main-bg);
             min-height: 100vh;
+            color: #333;
+            font-family: 'Segoe UI', sans-serif;
         }
 
         .login-container {
-            max-width: 400px;
-            margin: 100px auto;
-            padding: 2rem;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .admin-panel {
+            background: var(--card-bg);
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            background: white;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            padding: 2rem;
+            margin-top: 80px;
         }
 
-        .dashboard {
-            display: grid;
-            grid-template-columns: 250px 1fr;
-            min-height: 100vh;
-        }
-
-        .sidebar {
-            background: var(--primary);
-            color: white;
-            padding: 1rem;
-        }
-
-        .product-card {
-            transition: all 0.3s;
-            cursor: move;
-            position: relative;
-        }
-
-        .product-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .drag-over {
-            border: 2px dashed var(--secondary) !important;
-            background: #f8f9fa !important;
-        }
-
-        .stats-card {
-            background: white;
+        .search-box {
+            background: var(--card-bg);
             border-radius: 10px;
-            padding: 1.5rem;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+            padding: 1rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
 
-        .notification-badge {
-            position: absolute;
-            top: -10px;
-            right: -10px;
+        .table-custom {
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .table-custom thead {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .table-custom tbody tr:hover {
+            background-color: rgba(230, 126, 34, 0.1);
+        }
+
+        .btn-custom {
+            background: var(--accent-color);
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .btn-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(230, 126, 34, 0.3);
+        }
+
+        .tech-badge {
+            background: #3498db;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .highlight {
+            animation: highlight-fade 2s ease-out;
+        }
+
+        @keyframes highlight-fade {
+            0% { background: rgba(230, 126, 34, 0.3); }
+            100% { background: transparent; }
         }
     </style>
 </head>
 <body>
 
-<!-- Public View -->
-<div id="publicView" class="container py-5">
-    <div class="text-end mb-4">
-        <button class="btn btn-link" onclick="UI.showAdminLogin()">Admin Girişi</button>
-    </div>
-    <h1 class="display-4 text-center mb-5">Ürün Kataloğumuz</h1>
-    <div id="publicProducts" class="row g-4"></div>
-    <div class="text-center mt-5">
-        <button class="btn btn-primary btn-lg" onclick="UI.showDealerLogin()">
-            <i class="fas fa-sign-in-alt"></i> Bayi Girişi
+<!-- Admin Giriş Paneli -->
+<div class="login-container">
+    <div class="dropdown">
+        <button class="btn btn-custom dropdown-toggle" type="button" id="loginDropdown" data-bs-toggle="dropdown">
+            <i class="fas fa-user-shield"></i> Teknisyen Girişi
         </button>
-    </div>
-</div>
-
-<!-- Admin Login -->
-<div id="adminLogin" class="login-container hidden">
-    <h2 class="text-center mb-4">Admin Girişi</h2>
-    <div class="mb-3">
-        <label class="form-label">Admin Şifresi</label>
-        <input type="password" id="adminPassword" class="form-control" 
-               placeholder="facemask58">
-    </div>
-    <button class="btn btn-primary w-100" onclick="Auth.adminLogin()">Giriş Yap</button>
-    <div class="text-center mt-3">
-        <button class="btn btn-link" onclick="UI.showPublicView()">Geri Dön</button>
-    </div>
-</div>
-
-<!-- Admin Dashboard -->
-<div id="adminDashboard" class="hidden">
-    <div class="dashboard">
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <h3 class="mb-4">Yönetim Paneli</h3>
-            <ul class="nav flex-column">
-                <li class="nav-item mb-2">
-                    <button class="btn btn-light w-100 text-start" onclick="UI.showSection('products')">
-                        <i class="fas fa-box"></i> Ürün Yönetimi
-                    </button>
-                </li>
-                <li class="nav-item mb-2">
-                    <button class="btn btn-light w-100 text-start" onclick="UI.showSection('dealers')">
-                        <i class="fas fa-users"></i> Bayi Yönetimi
-                    </button>
-                </li>
-                <li class="nav-item mb-2">
-                    <button class="btn btn-light w-100 text-start" onclick="UI.showSection('stats')">
-                        <i class="fas fa-chart-bar"></i> İstatistikler
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button class="btn btn-danger w-100 text-start" onclick="Auth.logout()">
-                        <i class="fas fa-sign-out-alt"></i> Çıkış Yap
-                    </button>
-                </li>
-            </ul>
-        </div>
-
-        <!-- Main Content -->
-        <div class="p-4">
-            <!-- Products Section -->
-            <div id="productsSection">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2>Ürün Yönetimi</h2>
-                    <button class="btn btn-success" onclick="Product.showForm()">
-                        <i class="fas fa-plus"></i> Yeni Ürün
-                    </button>
-                </div>
-                
-                <div class="row g-4 drag-container" id="productList"></div>
+        <div class="dropdown-menu dropdown-menu-end p-3" style="min-width: 250px">
+            <div class="mb-3">
+                <label class="form-label"><i class="fas fa-user"></i> Kullanıcı Adı</label>
+                <input type="text" id="username" class="form-control">
             </div>
-
-            <!-- Dealers Section -->
-            <div id="dealersSection" class="hidden">
-                <h2 class="mb-4">Bayi Yönetimi</h2>
-                <div class="mb-4">
-                    <button class="btn btn-success" onclick="Dealer.showForm()">
-                        <i class="fas fa-plus"></i> Yeni Bayi
-                    </button>
-                </div>
-                <div id="dealerList" class="row g-4"></div>
+            <div class="mb-3">
+                <label class="form-label"><i class="fas fa-lock"></i> Şifre</label>
+                <input type="password" id="password" class="form-control">
             </div>
-
-            <!-- Stats Section -->
-            <div id="statsSection" class="hidden">
-                <h2 class="mb-4">İstatistikler</h2>
-                <div class="row g-4">
-                    <div class="col-md-4">
-                        <div class="stats-card">
-                            <h5>Toplam Ürün</h5>
-                            <h2 id="totalProducts">0</h2>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="stats-card">
-                            <h5>Toplam Bayi</h5>
-                            <h2 id="totalDealers">0</h2>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <button onclick="login()" class="btn btn-custom w-100">Giriş Yap</button>
         </div>
     </div>
 </div>
 
+<!-- Ana İçerik -->
+<div class="container">
+    <!-- Başlık -->
+    <div class="text-center my-5">
+        <h1 class="text-white mb-3"><i class="fas fa-mobile-alt"></i> Teknik Servis Fiyat Listesi</h1>
+        <div class="tech-badge">Xiaomi • Redmi • POCO • Samsung</div>
+    </div>
+
+    <!-- Admin Paneli (Gizli) -->
+    <div id="adminPanel" class="admin-panel mb-4" style="display: none;">
+        <h4 class="mb-4"><i class="fas fa-tools"></i> Yönetici Paneli</h4>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <input type="text" id="brand" class="form-control" placeholder="Marka*" required>
+            </div>
+            <div class="col-md-3">
+                <input type="text" id="model" class="form-control" placeholder="Model*" required>
+            </div>
+            <div class="col-md-3">
+                <input type="text" id="issue" class="form-control" placeholder="Arıza Tipi">
+            </div>
+            <div class="col-md-2">
+                <input type="text" id="price" class="form-control" placeholder="Fiyat*" required>
+            </div>
+            <div class="col-md-1">
+                <button onclick="addProduct()" class="btn btn-custom"><i class="fas fa-plus"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Arama ve Tablo -->
+    <div class="search-box mb-4">
+        <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+            <input type="text" id="searchInput" class="form-control" placeholder="Model veya Arıza Ara...">
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-custom">
+            <thead>
+                <tr>
+                    <th>Marka</th>
+                    <th>Model</th>
+                    <th>Arıza/Not</th>
+                    <th>Fiyat</th>
+                    <th id="actionHeader" style="display:none;">İşlemler</th>
+                </tr>
+            </thead>
+            <tbody id="productList">
+                <!-- Veriler buraya eklenecek -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Düzenleme Modalı -->
+<div class="modal fade" id="editModal">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> Ürün Düzenle</h5>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label>Marka*</label>
+                    <input type="text" id="editBrand" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label>Model*</label>
+                    <input type="text" id="editModel" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label>Arıza/Not</label>
+                    <input type="text" id="editIssue" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label>Fiyat*</label>
+                    <input type="text" id="editPrice" class="form-control" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="saveEdit()" class="btn btn-custom">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// Enhanced Data Manager
-const DataManager = {
-    init() {
-        if (!localStorage.getItem('products')) {
-            this.saveToFile('products.json', JSON.stringify([
-                {id: 1, name: "Örnek Ürün", price: 999, description: "Başlangıç ürünü"}
-            ]));
-        }
+    let products = JSON.parse(localStorage.getItem('products')) || [];
+    let editIndex = null;
+    let isAdmin = false;
+
+    function login() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
         
-        if (!localStorage.getItem('dealers')) {
-            this.saveToFile('dealers.json', JSON.stringify([
-                {username: "demo", password: "demo", products: []}
-            ]));
-        }
-    },
-
-    saveToFile(filename, data) {
-        const blob = new Blob([data], {type: 'text/plain'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
-    },
-
-    loadFromFile(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                resolve(JSON.parse(e.target.result));
-            };
-            reader.readAsText(file);
-        });
-    },
-
-    async backupData() {
-        const products = localStorage.getItem('products');
-        const dealers = localStorage.getItem('dealers');
-        this.saveToFile('backup.json', JSON.stringify({products, dealers}));
-    }
-};
-
-// Auth System
-const Auth = {
-    adminPassword: 'facemask58',
-
-    adminLogin() {
-        const input = document.getElementById('adminPassword').value;
-        if(input === this.adminPassword) {
-            sessionStorage.setItem('role', 'admin');
-            UI.showAdminDashboard();
+        if(username === 'admin' && password === 'admin123') {
+            isAdmin = true;
+            document.getElementById('adminPanel').style.display = 'block';
+            document.getElementById('actionHeader').style.display = 'table-cell';
+            loadProducts();
+            document.querySelector('.login-container').innerHTML = `
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-white"><i class="fas fa-user-cog"></i> Admin</span>
+                    <button onclick="logout()" class="btn btn-sm btn-custom">Çıkış</button>
+                </div>
+            `;
         } else {
-            alert('Geçersiz şifre!');
+            alert('Hatalı giriş bilgileri!');
         }
-    },
-
-    logout() {
-        sessionStorage.clear();
-        UI.showPublicView();
     }
-};
 
-// Product System
-const Product = {
-    currentProduct: null,
-
-    showForm(product = null) {
-        this.currentProduct = product;
-        // Show modal with form
-    },
-
-    saveProduct(data) {
-        // Save product logic
-    },
-
-    deleteProduct(id) {
-        // Delete product logic
+    function logout() {
+        isAdmin = false;
+        location.reload();
     }
-};
 
-// UI Manager
-const UI = {
-    init() {
-        this.initDragDrop();
-        DataManager.init();
-        this.renderPublicProducts();
-    },
+    function filterProducts() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = products.filter(p => 
+            Object.values(p).some(v => v.toLowerCase().includes(searchTerm))
+        );
+        renderProducts(filtered);
+    }
 
-    showSection(sectionId) {
-        document.querySelectorAll('[id$="Section"]').forEach(el => {
-            el.classList.add('hidden');
-        });
-        document.getElementById(`${sectionId}Section`).classList.remove('hidden');
-    },
+    function addProduct() {
+        const newProduct = {
+            brand: document.getElementById('brand').value.trim(),
+            model: document.getElementById('model').value.trim(),
+            issue: document.getElementById('issue').value.trim(),
+            price: document.getElementById('price').value.trim()
+        };
 
-    renderPublicProducts() {
-        // Render public products
-    },
+        if(!newProduct.brand || !newProduct.model || !newProduct.price) {
+            alert('Lütfen zorunlu alanları doldurun! (Marka, Model ve Fiyat)');
+            return;
+        }
 
-    initDragDrop() {
-        const container = document.querySelector('.drag-container');
+        products.push(newProduct);
+        localStorage.setItem('products', JSON.stringify(products));
         
-        container.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.target.closest('.drag-container').classList.add('drag-over');
-        });
+        clearInputs();
+        document.getElementById('searchInput').value = '';
+        filterProducts();
+        highlightRow(products.length - 1);
+    }
 
-        container.addEventListener('dragleave', (e) => {
-            e.target.closest('.drag-container').classList.remove('drag-over');
-        });
+    function renderProducts(data) {
+        const tbody = document.getElementById('productList');
+        tbody.innerHTML = data.map((product, index) => `
+            <tr>
+                <td>${product.brand}</td>
+                <td>${product.model}</td>
+                <td>${product.issue || '-'}</td>
+                <td><span class="badge bg-success">${product.price}</span></td>
+                <td style="${isAdmin ? '' : 'display:none'}">
+                    <button onclick="editProduct(${index})" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></button>
+                    <button onclick="deleteProduct(${index})" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `).join('');
+    }
 
-        container.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            const container = e.target.closest('.drag-container');
-            container.classList.remove('drag-over');
-            
-            // Handle file drop
-            const files = e.dataTransfer.files;
-            if(files.length > 0) {
-                const data = await DataManager.loadFromFile(files[0]);
-                // Process imported data
-            }
+    function editProduct(index) {
+        editIndex = index;
+        const product = products[index];
+        document.getElementById('editBrand').value = product.brand;
+        document.getElementById('editModel').value = product.model;
+        document.getElementById('editIssue').value = product.issue;
+        document.getElementById('editPrice').value = product.price;
+        new bootstrap.Modal('#editModal').show();
+    }
+
+    function saveEdit() {
+        const editedProduct = {
+            brand: document.getElementById('editBrand').value.trim(),
+            model: document.getElementById('editModel').value.trim(),
+            issue: document.getElementById('editIssue').value.trim(),
+            price: document.getElementById('editPrice').value.trim()
+        };
+
+        if(!editedProduct.brand || !editedProduct.model || !editedProduct.price) {
+            alert('Lütfen zorunlu alanları doldurun!');
+            return;
+        }
+
+        products[editIndex] = editedProduct;
+        localStorage.setItem('products', JSON.stringify(products));
+        filterProducts();
+        bootstrap.Modal.getInstance('#editModal').hide();
+    }
+
+    function deleteProduct(index) {
+        if(confirm('Bu kaydı silmek istediğinize emin misiniz?')) {
+            products.splice(index, 1);
+            localStorage.setItem('products', JSON.stringify(products));
+            filterProducts();
+        }
+    }
+
+    function clearInputs() {
+        ['brand', 'model', 'issue', 'price'].forEach(id => {
+            document.getElementById(id).value = '';
         });
     }
-};
 
-// Initialize
-UI.init();
+    function highlightRow(index) {
+        const rows = document.querySelectorAll('#productList tr');
+        if(rows[index]) {
+            rows[index].classList.add('highlight');
+            setTimeout(() => rows[index].classList.remove('highlight'), 2000);
+        }
+    }
+
+    window.onload = () => {
+        if(products.length === 0) {
+            products = [
+                {brand: 'Xiaomi', model: '11T', issue: 'Yazılım Gerekirse +250TL', price: '150 TL'},
+                {brand: 'Redmi', model: 'Note 12 Pro 5G', issue: 'Kilit Açık Olmalı', price: '200 TL'},
+                {brand: 'Samsung', model: 'A54', issue: 'FRP Server Gerekli', price: '250 TL'}
+            ];
+            localStorage.setItem('products', JSON.stringify(products));
+        }
+        filterProducts();
+        document.getElementById('searchInput').addEventListener('input', filterProducts);
+    }
 </script>
 </body>
 </html>
