@@ -142,7 +142,7 @@
                 <input type="text" id="price" class="form-control" placeholder="Fiyat*" required>
             </div>
             <div class="col-md-1">
-                <button onclick="addProduct()" class="btn btn-custom"><i class="fas fa-plus"></i></button>
+                <button onclick="addProduct(event)" class="btn btn-custom"><i class="fas fa-plus"></i></button>
             </div>
         </div>
     </div>
@@ -278,7 +278,8 @@
   }
 
   // Ürün Yönetimi
-  async function addProduct() {
+  async function addProduct(event) {
+  event.preventDefault(); {
     const newProduct = {
       brand: document.getElementById('brand').value.trim(),
       model: document.getElementById('model').value.trim(),
