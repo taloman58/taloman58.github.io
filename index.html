@@ -82,9 +82,20 @@
             0% { background: rgba(230, 126, 34, 0.3); }
             100% { background: transparent; }
         }
+
+        .alert-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            min-width: 300px;
+        }
     </style>
 </head>
 <body>
+
+<!-- Alert Container -->
+<div id="alertContainer" class="alert-notification"></div>
 
 <!-- Admin Giriş Paneli -->
 <div class="login-container">
@@ -140,7 +151,7 @@
     <div class="search-box mb-4">
         <div class="input-group">
             <span class="input-group-text"><i class="fas fa-search"></i></span>
-            <input type="text" id="searchInput" class="form-control" placeholder="Model veya Arıza Ara...">
+            <input type="text" id="searchInput" class="form-control" placeholder="Model veya Arıza Ara..." onkeyup="filterProducts()">
         </div>
     </div>
 
@@ -168,6 +179,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-edit"></i> Ürün Düzenle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
@@ -188,19 +200,19 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
                 <button onclick="saveEdit()" class="btn btn-custom">Kaydet</button>
             </div>
         </div>
     </div>
 </div>
 
-<<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-  // Güncellenmiş Firebase Konfigürasyonu
   const firebaseConfig = {
     apiKey: "AIzaSyBZxoaXp0IU-V-ncuch1eahrrcKcxbpfDY",
     authDomain: "talhayazilim-a9b26.firebaseapp.com",
@@ -215,16 +227,8 @@
   const database = getDatabase(app);
   const productsRef = ref(database, 'products');
 
-  // Global Firebase Fonksiyonları
   window.firebaseOps = {
-    addProduct: async (product) => {
-      try {
-        const newProductRef = await push(productsRef, product);
-        return newProductRef.key;
-      } catch (error) {
-        throw error;
-      }
-    },
+    addProduct: (product) => push(productsRef, product),
     getProducts: (callback) => onValue(productsRef, (snapshot) => {
       callback(snapshot.val() || {});
     }),
@@ -236,29 +240,44 @@
 <script>
   let editKey = null;
   let isAdmin = false;
+  let allProducts = {};
 
-  // Geliştirilmiş Giriş Sistemi
+  // Giriş Sistemi
   function login() {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
     
     if(username === 'admin' && password === 'admin123') {
       isAdmin = true;
-      toggleAdminUI(true);
+      document.getElementById('adminPanel').style.display = 'block';
+      document.getElementById('actionHeader').style.display = 'table-cell';
+      document.querySelector('.login-container').innerHTML = `
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-white"><i class="fas fa-user-cog"></i> Admin</span>
+          <button onclick="logout()" class="btn btn-sm btn-custom">Çıkış</button>
+        </div>
+      `;
       loadProducts();
     } else {
-      showAlert('Hatalı giriş!', 'danger');
+      showAlert('Hatalı giriş bilgileri!', 'danger');
     }
   }
 
-  function toggleAdminUI(isLoggedIn) {
-    document.getElementById('adminPanel').style.display = isLoggedIn ? 'block' : 'none';
-    document.querySelectorAll('.action-cell').forEach(el => {
-      el.style.display = isLoggedIn ? 'table-cell' : 'none';
-    });
+  function logout() {
+    isAdmin = false;
+    document.getElementById('adminPanel').style.display = 'none';
+    document.getElementById('actionHeader').style.display = 'none';
+    document.querySelector('.login-container').innerHTML = `
+      <div class="dropdown">
+        <button class="btn btn-custom dropdown-toggle" type="button" data-bs-toggle="dropdown">
+          <i class="fas fa-user-shield"></i> Teknisyen Girişi
+        </button>
+        <!-- Dropdown menü aynı kalacak -->
+      </div>
+    `;
   }
 
-  // Güncellenmiş Ürün Ekleme Fonksiyonu
+  // Ürün Yönetimi
   async function addProduct() {
     const newProduct = {
       brand: document.getElementById('brand').value.trim(),
@@ -279,7 +298,6 @@
     }
   }
 
-  // Geliştirilmiş Validasyon
   function validateProduct(product) {
     const errors = [];
     if (!product.brand) errors.push('Marka');
@@ -299,47 +317,130 @@
     return true;
   }
 
-  // Fiyat Formatlama
   function formatPrice(price) {
-    return price.startsWith('₺') ? price : `₺${parseFloat(price).toFixed(2)}`;
+    const numericValue = parseFloat(price.replace(/[^0-9.,]/g, '')).toFixed(2);
+    return `₺${numericValue}`;
   }
 
-  // Hata Yönetimi
+  // Veri Yükleme
+  function loadProducts() {
+    window.firebaseOps.getProducts((products) => {
+      allProducts = products;
+      renderProducts(products);
+    });
+  }
+
+  function renderProducts(products) {
+    const tbody = document.getElementById('productList');
+    tbody.innerHTML = '';
+    
+    for (const [key, product] of Object.entries(products)) {
+      const row = `
+        <tr>
+          <td>${product.brand}</td>
+          <td>${product.model}</td>
+          <td>${product.issue || '-'}</td>
+          <td>${product.price}</td>
+          <td class="action-cell" style="display: ${isAdmin ? 'table-cell' : 'none'}">
+            <button onclick="editProduct('${key}')" class="btn btn-sm btn-warning me-2">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button onclick="deleteProduct('${key}')" class="btn btn-sm btn-danger">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+      tbody.innerHTML += row;
+    }
+  }
+
+  // Düzenleme İşlemleri
+  function editProduct(key) {
+    editKey = key;
+    const product = allProducts[key];
+    document.getElementById('editBrand').value = product.brand;
+    document.getElementById('editModel').value = product.model;
+    document.getElementById('editIssue').value = product.issue || '';
+    document.getElementById('editPrice').value = product.price;
+    new bootstrap.Modal(document.getElementById('editModal')).show();
+  }
+
+  async function saveEdit() {
+    const updatedProduct = {
+      brand: document.getElementById('editBrand').value.trim(),
+      model: document.getElementById('editModel').value.trim(),
+      issue: document.getElementById('editIssue').value.trim(),
+      price: formatPrice(document.getElementById('editPrice').value.trim()),
+      timestamp: Date.now()
+    };
+
+    if (!validateProduct(updatedProduct)) return;
+
+    try {
+      await window.firebaseOps.updateProduct(editKey, updatedProduct);
+      showAlert('Ürün başarıyla güncellendi!', 'success');
+      new bootstrap.Modal(document.getElementById('editModal')).hide();
+    } catch (error) {
+      handleFirebaseError(error);
+    }
+  }
+
+  // Silme İşlemi
+  async function deleteProduct(key) {
+    if (confirm('Bu ürünü silmek istediğinize emin misiniz?')) {
+      try {
+        await window.firebaseOps.deleteProduct(key);
+        showAlert('Ürün başarıyla silindi!', 'success');
+      } catch (error) {
+        handleFirebaseError(error);
+      }
+    }
+  }
+
+  // Arama Filtreleme
+  function filterProducts() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = Object.fromEntries(
+      Object.entries(allProducts).filter(([_, product]) => 
+        product.model.toLowerCase().includes(searchTerm) ||
+        (product.issue || '').toLowerCase().includes(searchTerm)
+      )
+    );
+    renderProducts(filtered);
+  }
+
+  // Yardımcı Fonksiyonlar
+  function showAlert(message, type) {
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type} alert-dismissible fade show`;
+    alert.innerHTML = `
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.getElementById('alertContainer').appendChild(alert);
+    setTimeout(() => alert.remove(), 3000);
+  }
+
+  function clearInputs() {
+    ['brand', 'model', 'issue', 'price'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+  }
+
   function handleFirebaseError(error) {
     const errorMessages = {
       'PERMISSION_DENIED': 'Yetkiniz yok!',
       'INVALID_DATA': 'Geçersiz veri formatı!',
       'NETWORK_ERROR': 'İnternet bağlantısı yok!'
     };
-    
-    const message = errorMessages[error.code] || `Hata: ${error.message}`;
-    showAlert(message, 'danger');
+    showAlert(errorMessages[error.code] || `Hata: ${error.message}`, 'danger');
   }
 
-  // Ürün Yükleme ve Tablo Güncelleme
-  function loadProducts() {
-    window.firebaseOps.getProducts((products) => {
-      const tbody = document.getElementById('productList');
-      tbody.innerHTML = '';
-      
-      for (const [key, product] of Object.entries(products)) {
-        const row = `
-          <tr>
-            <td>${product.brand}</td>
-            <td>${product.model}</td>
-            <td>${product.issue || '-'}</td>
-            <td>${product.price}</td>
-            <td class="action-cell" style="display: ${isAdmin ? 'table-cell' : 'none'}">
-              <button onclick="editProduct('${key}')" class="btn btn-sm btn-warning">
-                <i class="fas fa-edit"></i>
-              </button>
-              <button onclick="deleteProduct('${key}')" class="btn btn-sm btn-danger">
-                <i class="fas fa-trash"></i>
-              </button>
-            </td>
-          </tr>
-        `;
-        tbody.innerHTML += row;
-      }
-    });
-  }
+  // İlk Yükleme
+  document.addEventListener('DOMContentLoaded', () => {
+    loadProducts();
+  });
+</script>
+</body>
+</html>
