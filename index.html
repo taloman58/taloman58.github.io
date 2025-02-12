@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Ultra Pro Bayi Yönetim Sistemi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2A2F4F;
+            --secondary: #917FB3;
+            --accent: #E5BEEC;
+        }
+
+        body {
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            background: white;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            background: var(--primary);
+            color: white;
+            padding: 1rem;
+        }
+
+        .product-card {
+            transition: all 0.3s;
+            cursor: move;
+            position: relative;
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .drag-over {
+            border: 2px dashed var(--secondary) !important;
+            background: #f8f9fa !important;
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Public View -->
+<div id="publicView" class="container py-5">
+    <div class="text-end mb-4">
+        <button class="btn btn-link" onclick="UI.showAdminLogin()">Admin Girişi</button>
+    </div>
+    <h1 class="display-4 text-center mb-5">Ürün Kataloğumuz</h1>
+    <div id="publicProducts" class="row g-4"></div>
+    <div class="text-center mt-5">
+        <button class="btn btn-primary btn-lg" onclick="UI.showDealerLogin()">
+            <i class="fas fa-sign-in-alt"></i> Bayi Girişi
+        </button>
+    </div>
+</div>
+
+<!-- Admin Login -->
+<div id="adminLogin" class="login-container hidden">
+    <h2 class="text-center mb-4">Admin Girişi</h2>
+    <div class="mb-3">
+        <label class="form-label">Admin Şifresi</label>
+        <input type="password" id="adminPassword" class="form-control" 
+               placeholder="facemask58">
+    </div>
+    <button class="btn btn-primary w-100" onclick="Auth.adminLogin()">Giriş Yap</button>
+    <div class="text-center mt-3">
+        <button class="btn btn-link" onclick="UI.showPublicView()">Geri Dön</button>
+    </div>
+</div>
+
+<!-- Admin Dashboard -->
+<div id="adminDashboard" class="hidden">
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h3 class="mb-4">Yönetim Paneli</h3>
+            <ul class="nav flex-column">
+                <li class="nav-item mb-2">
+                    <button class="btn btn-light w-100 text-start" onclick="UI.showSection('products')">
+                        <i class="fas fa-box"></i> Ürün Yönetimi
+                    </button>
+                </li>
+                <li class="nav-item mb-2">
+                    <button class="btn btn-light w-100 text-start" onclick="UI.showSection('dealers')">
+                        <i class="fas fa-users"></i> Bayi Yönetimi
+                    </button>
+                </li>
+                <li class="nav-item mb-2">
+                    <button class="btn btn-light w-100 text-start" onclick="UI.showSection('stats')">
+                        <i class="fas fa-chart-bar"></i> İstatistikler
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="btn btn-danger w-100 text-start" onclick="Auth.logout()">
+                        <i class="fas fa-sign-out-alt"></i> Çıkış Yap
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="p-4">
+            <!-- Products Section -->
+            <div id="productsSection">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>Ürün Yönetimi</h2>
+                    <button class="btn btn-success" onclick="Product.showForm()">
+                        <i class="fas fa-plus"></i> Yeni Ürün
+                    </button>
+                </div>
+                
+                <div class="row g-4 drag-container" id="productList"></div>
+            </div>
+
+            <!-- Dealers Section -->
+            <div id="dealersSection" class="hidden">
+                <h2 class="mb-4">Bayi Yönetimi</h2>
+                <div class="mb-4">
+                    <button class="btn btn-success" onclick="Dealer.showForm()">
+                        <i class="fas fa-plus"></i> Yeni Bayi
+                    </button>
+                </div>
+                <div id="dealerList" class="row g-4"></div>
+            </div>
+
+            <!-- Stats Section -->
+            <div id="statsSection" class="hidden">
+                <h2 class="mb-4">İstatistikler</h2>
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="stats-card">
+                            <h5>Toplam Ürün</h5>
+                            <h2 id="totalProducts">0</h2>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stats-card">
+                            <h5>Toplam Bayi</h5>
+                            <h2 id="totalDealers">0</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Enhanced Data Manager
+const DataManager = {
+    init() {
+        if (!localStorage.getItem('products')) {
+            this.saveToFile('products.json', JSON.stringify([
+                {id: 1, name: "Örnek Ürün", price: 999, description: "Başlangıç ürünü"}
+            ]));
+        }
+        
+        if (!localStorage.getItem('dealers')) {
+            this.saveToFile('dealers.json', JSON.stringify([
+                {username: "demo", password: "demo", products: []}
+            ]));
+        }
+    },
+
+    saveToFile(filename, data) {
+        const blob = new Blob([data], {type: 'text/plain'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    },
+
+    loadFromFile(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                resolve(JSON.parse(e.target.result));
+            };
+            reader.readAsText(file);
+        });
+    },
+
+    async backupData() {
+        const products = localStorage.getItem('products');
+        const dealers = localStorage.getItem('dealers');
+        this.saveToFile('backup.json', JSON.stringify({products, dealers}));
+    }
+};
+
+// Auth System
+const Auth = {
+    adminPassword: 'facemask58',
+
+    adminLogin() {
+        const input = document.getElementById('adminPassword').value;
+        if(input === this.adminPassword) {
+            sessionStorage.setItem('role', 'admin');
+            UI.showAdminDashboard();
+        } else {
+            alert('Geçersiz şifre!');
+        }
+    },
+
+    logout() {
+        sessionStorage.clear();
+        UI.showPublicView();
+    }
+};
+
+// Product System
+const Product = {
+    currentProduct: null,
+
+    showForm(product = null) {
+        this.currentProduct = product;
+        // Show modal with form
+    },
+
+    saveProduct(data) {
+        // Save product logic
+    },
+
+    deleteProduct(id) {
+        // Delete product logic
+    }
+};
+
+// UI Manager
+const UI = {
+    init() {
+        this.initDragDrop();
+        DataManager.init();
+        this.renderPublicProducts();
+    },
+
+    showSection(sectionId) {
+        document.querySelectorAll('[id$="Section"]').forEach(el => {
+            el.classList.add('hidden');
+        });
+        document.getElementById(`${sectionId}Section`).classList.remove('hidden');
+    },
+
+    renderPublicProducts() {
+        // Render public products
+    },
+
+    initDragDrop() {
+        const container = document.querySelector('.drag-container');
+        
+        container.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.target.closest('.drag-container').classList.add('drag-over');
+        });
+
+        container.addEventListener('dragleave', (e) => {
+            e.target.closest('.drag-container').classList.remove('drag-over');
+        });
+
+        container.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            const container = e.target.closest('.drag-container');
+            container.classList.remove('drag-over');
+            
+            // Handle file drop
+            const files = e.dataTransfer.files;
+            if(files.length > 0) {
+                const data = await DataManager.loadFromFile(files[0]);
+                // Process imported data
+            }
+        });
+    }
+};
+
+// Initialize
+UI.init();
+</script>
+</body>
+</html>
