@@ -187,84 +187,79 @@ let currentUser = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     new bootstrap.Modal('#loginModal').show();
+    
+    // Enter tuşu desteği
+    document.getElementById('loginPassword').addEventListener('keypress', function(e) {
+        if(e.key === 'Enter') attemptLogin();
+    });
+    document.getElementById('loginUsername').addEventListener('keypress', function(e) {
+        if(e.key === 'Enter') attemptLogin();
+    });
 });
 
 async function attemptLogin() {
     const username = document.getElementById('loginUsername').value;
     const password = document.getElementById('loginPassword').value;
 
-    const { data } = await supabase
+    const { data: user } = await supabase
         .from('users')
         .select()
         .eq('username', username)
         .eq('password', password)
         .single();
 
-    if(data) {
-        currentUser = data;
+    if(user) {
+        // Giriş sayacını güncelle
+        await supabase.rpc('increment_login_count', { user_id: user.id });
+        
+        currentUser = user;
         bootstrap.Modal.getInstance('#loginModal').hide();
         document.getElementById('searchBar').style.display = 'block';
-        if(data.role === 'admin') {
+        
+        if(user.role === 'admin') {
             document.getElementById('adminPanel').style.display = 'block';
+            showLoginStats();
         }
         loadProducts();
     } else {
-        document.getElementById('loginMessage').textContent = 'Hatalı giriş bilgileri!';
-    }
-document.getElementById('loginPassword').addEventListener('keypress', function(e) {
-    if(e.key === 'Enter') {
-        attemptLogin();
-    }
-});
-
-document.getElementById('loginUsername').addEventListener('keypress', function(e) {
-    if(e.key === 'Enter') {
-        attemptLogin();
-    }
-});
-
-async function attemptLogin() {
-    const username = document.getElementById('loginUsername').value;
-    const password = document.getElementById('loginPassword').value;
-
-    const { data } = await supabase
-        .from('users')
-        .select()
-        .eq('username', username)
-        .eq('password', password)
-        .single();
-
-    if(data) {
-        currentUser = data;
-        bootstrap.Modal.getInstance('#loginModal').hide();
-        document.getElementById('searchBar').style.display = 'block';
-        if(data.role === 'admin') {
-            document.getElementById('adminPanel').style.display = 'block';
-        }
-        loadProducts();
-    } else {
-        document.getElementById('loginMessage').textContent = 'Şifre yanlış!'; // Değişti
+        document.getElementById('loginMessage').textContent = 'Şifre yanlış!';
     }
 }
 
-// Enter tuşu desteği ekleme
-document.addEventListener('DOMContentLoaded', () => {
-    new bootstrap.Modal('#loginModal').show();
-    
-    // Yeni eklenen Enter tuşu desteği
-    document.getElementById('loginPassword').addEventListener('keypress', function(e) {
-        if(e.key === 'Enter') {
-            attemptLogin();
-        }
-    });
-    
-    document.getElementById('loginUsername').addEventListener('keypress', function(e) {
-        if(e.key === 'Enter') {
-            attemptLogin();
-        }
-    });
-});
+async function showLoginStats() {
+    const { data: stats } = await supabase
+        .from('user_login_stats')
+        .select(`
+            login_count,
+            last_login,
+            users (username)
+        `);
 
+    const statsHTML = `
+        <div class="admin-panel mt-4">
+            <h5><i class="fas fa-chart-bar"></i> Giriş İstatistikleri</h5>
+            <table class="table table-hover mt-3">
+                <thead>
+                    <tr>
+                        <th>Kullanıcı</th>
+                        <th>Toplam Giriş</th>
+                        <th>Son Giriş</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${stats.map(stat => `
+                        <tr>
+                            <td>${stat.users.username}</td>
+                            <td>${stat.login_count}</td>
+                            <td>${new Date(stat.last_login).toLocaleString()}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    document.getElementById('adminPanel').insertAdjacentHTML('afterend', statsHTML);
 }
 
 async function loadProducts() {
@@ -290,7 +285,7 @@ function renderProducts(products) {
                 </div>
                 <hr class="my-2">
                 <div class="text-muted">${product.issue || 'Genel Arıza'}</div>
-                <div class="fw-bold mt-2 text-primary">₺${product.price}</div> <!-- Bu satır değişti -->
+                <div class="fw-bold mt-2 text-primary">₺${product.price}</div>
             </div>
         </div>
     `).join('');
@@ -316,7 +311,7 @@ function showDetail(product) {
     document.getElementById('detailBrand').textContent = product.brand;
     document.getElementById('detailModel').textContent = product.model;
     document.getElementById('detailIssue').textContent = product.issue || '-';
-    document.getElementById('detailPrice').textContent = `₺${product.price}`; // Bu satır değişti
+    document.getElementById('detailPrice').textContent = `₺${product.price}`;
     new bootstrap.Modal('#detailModal').show();
 }
 
@@ -326,7 +321,7 @@ async function addProduct(e) {
         brand: document.getElementById('brand').value,
         model: document.getElementById('model').value,
         issue: document.getElementById('issue').value,
-        price: document.getElementById('price').value + ' TL'
+        price: document.getElementById('price').value
     };
 
     await supabase.from('products').insert(newProduct);
