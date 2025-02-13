@@ -252,14 +252,21 @@ async function attemptLogin() {
 
         if(user) {
             // Giriş istatistiklerini güncelle
+            const { data: existingStat } = await supabase
+                .from('user_login_stats')
+                .select('login_count')
+                .eq('user_id', user.id)
+                .single();
+
+            const newLoginCount = (existingStat?.login_count || 0) + 1;
+
             const { error: updateError } = await supabase
                 .from('user_login_stats')
                 .upsert({
                     user_id: user.id,
-                    login_count: 1,
+                    login_count: newLoginCount,
                     last_login: new Date().toISOString()
-                }, { onConflict: 'user_id' })
-                .select();
+                }, { onConflict: 'user_id' });
 
             currentUser = user;
             bootstrap.Modal.getInstance('#loginModal').hide();
