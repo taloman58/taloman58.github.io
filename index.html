@@ -2,6 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teknik Servis Yönetim Sistemi</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -41,14 +42,9 @@
             background: white;
             border-radius: 30px;
             box-shadow: 0 2px 15px rgba(0,0,0,0.1);
-            padding: 1rem 2rem;
+            padding: 1rem;
             margin: 20px 0;
             transition: all 0.3s ease;
-        }
-
-        .search-bar:focus-within {
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            transform: translateY(-2px);
         }
 
         .admin-panel {
@@ -57,6 +53,35 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             padding: 1.5rem;
             margin: 20px 0;
+        }
+
+        /* Mobil Uyumlu Stiller */
+        @media (max-width: 768px) {
+            .search-bar {
+                border-radius: 20px;
+                padding: 0.75rem;
+            }
+            
+            .product-card {
+                margin-bottom: 15px;
+            }
+            
+            .admin-panel .row > div {
+                margin-bottom: 10px;
+            }
+            
+            .modal-content {
+                margin: 15px;
+            }
+            
+            .btn {
+                padding: 0.5rem 1rem;
+            }
+            
+            #dynamicNotice {
+                font-size: 0.9rem;
+                padding: 10px;
+            }
         }
 
         .detail-modal {
@@ -81,9 +106,18 @@
             transition: all 0.3s ease;
         }
 
-        .close-btn:hover {
-            transform: rotate(90deg);
-            background: #d35400;
+        #dynamicNotice {
+            border-radius: 25px;
+            background: linear-gradient(45deg, #fff3cd, #ffecb5);
+            border: 2px solid #ffd351;
+            font-weight: 500;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
         }
     </style>
 </head>
@@ -93,7 +127,7 @@
 <div class="modal fade" id="loginModal" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content login-backdrop text-white">
-            <div class="modal-body p-5">
+            <div class="modal-body p-3 p-md-5">
                 <h3 class="text-center mb-4"><i class="fas fa-lock"></i> Teknik Servis Sistemi</h3>
                 <div class="mb-3">
                     <input type="text" id="loginUsername" class="form-control form-control-lg" placeholder="Kullanıcı Adı">
@@ -119,36 +153,43 @@
                 <input type="text" id="searchInput" class="form-control" 
                        placeholder="Marka, Model veya Arıza Tipi Ara..."
                        onkeyup="filterProducts()">
-                <button class="btn btn-primary rounded-pill px-4" onclick="filterProducts()">
+                <button class="btn btn-primary rounded-pill px-3 px-md-4" onclick="filterProducts()">
                     Ara
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- Yeni Model Uyarısı -->
+    <div id="dynamicNotice" class="alert alert-warning text-center mb-4" style="display: none;">
+        <i class="fas fa-exclamation-circle me-2"></i>
+        YENİ MODELLER HER GÜN GÜNCELLENMEKTEDİR
+        <i class="fas fa-sync-alt ms-2"></i>
+    </div>
+
     <!-- Admin Paneli -->
     <div id="adminPanel" class="admin-panel" style="display: none;">
-        <div class="row g-3 align-items-center">
-            <div class="col-md-3">
+        <div class="row g-2 g-md-3 align-items-center">
+            <div class="col-12 col-md-3">
                 <input type="text" id="brand" class="form-control" placeholder="Marka">
             </div>
-            <div class="col-md-2">
+            <div class="col-12 col-md-2">
                 <input type="text" id="model" class="form-control" placeholder="Model">
             </div>
-            <div class="col-md-3">
+            <div class="col-12 col-md-3">
                 <input type="text" id="issue" class="form-control" placeholder="Arıza Tanımı">
             </div>
-            <div class="col-md-2">
+            <div class="col-12 col-md-2">
                 <input type="text" id="price" class="form-control" placeholder="Fiyat">
             </div>
-            <div class="col-md-2">
+            <div class="col-12 col-md-2">
                 <button onclick="addProduct(event)" class="btn btn-primary w-100">Ekle</button>
             </div>
         </div>
     </div>
 
     <!-- Ürün Listesi -->
-    <div class="row g-4" id="productList"></div>
+    <div class="row g-3 g-md-4" id="productList"></div>
 </div>
 
 <!-- Detay Modalı -->
@@ -158,8 +199,8 @@
             <div class="close-btn" data-bs-dismiss="modal">
                 <i class="fas fa-times"></i>
             </div>
-            <div class="modal-body p-4">
-                <h4 id="detailTitle" class="mb-4"></h4>
+            <div class="modal-body p-3 p-md-4">
+                <h4 id="detailTitle" class="mb-3 mb-md-4"></h4>
                 <div class="row">
                     <div class="col-6">
                         <p><i class="fas fa-tag me-2"></i><strong>Marka:</strong> <span id="detailBrand"></span></p>
@@ -201,74 +242,107 @@ async function attemptLogin() {
     const username = document.getElementById('loginUsername').value;
     const password = document.getElementById('loginPassword').value;
 
-    const { data: user } = await supabase
-        .from('users')
-        .select()
-        .eq('username', username)
-        .eq('password', password)
-        .single();
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .select()
+            .eq('username', username)
+            .eq('password', password)
+            .single();
 
-    if(user) {
-        // Giriş sayacını güncelle
-        await supabase.rpc('increment_login_count', { user_id: user.id });
-        
-        currentUser = user;
-        bootstrap.Modal.getInstance('#loginModal').hide();
-        document.getElementById('searchBar').style.display = 'block';
-        
-        if(user.role === 'admin') {
-            document.getElementById('adminPanel').style.display = 'block';
-            showLoginStats();
+        if(user) {
+            // Giriş istatistiklerini güncelle
+            const { error: updateError } = await supabase
+                .from('user_login_stats')
+                .upsert({
+                    user_id: user.id,
+                    login_count: 1,
+                    last_login: new Date().toISOString()
+                }, { onConflict: 'user_id' })
+                .select();
+
+            currentUser = user;
+            bootstrap.Modal.getInstance('#loginModal').hide();
+            document.getElementById('searchBar').style.display = 'block';
+            
+            if(user.role === 'admin') {
+                document.getElementById('adminPanel').style.display = 'block';
+                await showLoginStats();
+            }
+            loadProducts();
+        } else {
+            document.getElementById('loginMessage').textContent = 'Geçersiz kullanıcı adı veya şifre!';
         }
-        loadProducts();
-    } else {
-        document.getElementById('loginMessage').textContent = 'Şifre yanlış!';
+    } catch (error) {
+        console.error('Giriş hatası:', error);
+        document.getElementById('loginMessage').textContent = 'Bir hata oluştu!';
     }
 }
 
 async function showLoginStats() {
-    const { data: stats } = await supabase
-        .from('user_login_stats')
-        .select(`
-            login_count,
-            last_login,
-            users (username)
-        `);
+    try {
+        const { data: stats, error } = await supabase
+            .from('user_login_stats')
+            .select(`
+                login_count,
+                last_login,
+                users (username)
+            `)
+            .order('last_login', { ascending: false });
 
-    const statsHTML = `
-        <div class="admin-panel mt-4">
-            <h5><i class="fas fa-chart-bar"></i> Giriş İstatistikleri</h5>
-            <table class="table table-hover mt-3">
-                <thead>
-                    <tr>
-                        <th>Kullanıcı</th>
-                        <th>Toplam Giriş</th>
-                        <th>Son Giriş</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${stats.map(stat => `
-                        <tr>
-                            <td>${stat.users.username}</td>
-                            <td>${stat.login_count}</td>
-                            <td>${new Date(stat.last_login).toLocaleString()}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
+        if(error) throw error;
 
-    document.getElementById('adminPanel').insertAdjacentHTML('afterend', statsHTML);
+        const statsHTML = `
+            <div class="admin-panel mt-4">
+                <h5><i class="fas fa-chart-bar"></i> Giriş İstatistikleri</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover mt-3">
+                        <thead>
+                            <tr>
+                                <th>Kullanıcı</th>
+                                <th>Toplam Giriş</th>
+                                <th>Son Giriş</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${stats.map(stat => `
+                                <tr>
+                                    <td>${stat.users?.username || '-'}</td>
+                                    <td>${stat.login_count}</td>
+                                    <td>${stat.last_login ? new Date(stat.last_login).toLocaleString() : '-'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        const existingStats = document.querySelector('.login-stats');
+        if(existingStats) existingStats.remove();
+        document.getElementById('adminPanel').insertAdjacentHTML('afterend', statsHTML);
+    } catch (error) {
+        console.error('İstatistik hatası:', error);
+    }
 }
 
 async function loadProducts() {
-    const { data } = await supabase
-        .from('products')
-        .select()
-        .order('created_at', { ascending: false });
+    try {
+        const { data, error } = await supabase
+            .from('products')
+            .select()
+            .order('created_at', { ascending: false });
 
-    renderProducts(data || []);
+        if(error) throw error;
+        renderProducts(data || []);
+        document.getElementById('dynamicNotice').style.display = 'block';
+    } catch (error) {
+        console.error('Ürün yükleme hatası:', error);
+    }
+}
+
+function renderProducts(products) {
+    document.getElementById('dynamicNotice').style.display = 'block';
 }
 
 function renderProducts(products) {
