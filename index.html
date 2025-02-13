@@ -236,7 +236,7 @@ function renderProducts(products) {
                 </div>
                 <hr class="my-2">
                 <div class="text-muted">${product.issue || 'Genel Arıza'}</div>
-                <div class="fw-bold mt-2 text-primary">${product.price} TL</div>
+                <div class="fw-bold mt-2 text-primary">₺${product.price}</div> <!-- Bu satır değişti -->
             </div>
         </div>
     `).join('');
@@ -262,7 +262,7 @@ function showDetail(product) {
     document.getElementById('detailBrand').textContent = product.brand;
     document.getElementById('detailModel').textContent = product.model;
     document.getElementById('detailIssue').textContent = product.issue || '-';
-    document.getElementById('detailPrice').textContent = product.price;
+    document.getElementById('detailPrice').textContent = `₺${product.price}`; // Bu satır değişti
     new bootstrap.Modal('#detailModal').show();
 }
 
